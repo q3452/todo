@@ -1,0 +1,7 @@
+{
+    "dangerous": false, 
+    "description": "A simple TO DO list, intended to later support GTD style task management.", 
+    "prevent-decorations": false, 
+    "uuid": "todo@q", 
+    "name": "TO DO list"
+}
