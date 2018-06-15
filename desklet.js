@@ -112,7 +112,7 @@ ToDoDesklet.prototype = {
     handleDeleteTask: function(button, clicked_button) {
         let target = button.get_parent().get_parent().get_id();
         if (target===null) {
-            this.logAction("Delete clicked but not target found (null).");   
+            this.logAction("Delete clicked but no target found (null).");   
             return false;
         }
         this.logAction("Delete clicked: "+target);
@@ -123,7 +123,7 @@ ToDoDesklet.prototype = {
     handleCompleteTask: function(button, clicked_button) {
         let target = button.get_parent().get_parent().get_id();
         if (target===null) {
-            this.logAction("Complete clicked but not target found (null).");   
+            this.logAction("Complete clicked but no target found (null).");   
             return false;
         }
         this.logAction("Complete clicked: "+target);
@@ -164,47 +164,51 @@ ToDoDesklet.prototype = {
         let WHITE = Clutter.Color.get_static(Clutter.StaticColor.WHITE);
         // main container for the desklet
         this.window=new St.BoxLayout({style: "padding: 5px", vertical: true});
-        this.container= new St.BoxLayout({style: "padding: 5px;spacing: 5px;", vertical: true, x_align: 2});
+        let mainContainer= new St.BoxLayout({style: "padding: 5px;spacing: 5px;", vertical: true, x_align: 2});
         this.listContainer= new St.BoxLayout({vertical: true, x_align: 2});
-        this.deskletLabel = new St.Label({style: "text-align: center;font-weight: bold;"});
-        this.deskletLabel.set_text("TO DO");
-        this.listScroll = new St.ScrollView({style: "spacing: initial;padding: 5px;border-width: 1px;border-style: solid;border-radius: 5px;border-color: black;"});
-        this.listScroll.set_policy(GtkPolicies.NEVER, GtkPolicies.ALWAYS);
-        this.listScroll.set_height(200);
+        let deskletLabel = new St.Label({style: "text-align: center;font-weight: bold;"});
+        deskletLabel.set_text("TO DO");
+
+        // Container for task list
+        let listScroll = new St.ScrollView({style: "spacing: initial;padding: 5px;border-width: 1px;border-style: solid;border-radius: 5px;border-color: black;"});
+        listScroll.set_policy(GtkPolicies.NEVER, GtkPolicies.ALWAYS);
+        listScroll.set_height(200);
         this.listContainer.set_width(300);
-        this.listScroll.add_actor(this.listContainer);
+        listScroll.add_actor(this.listContainer);
 
         // New task fields
-        this.newEntryLabel = new St.Label({style: "font-size: 14px;"});
-        this.newEntryLabel.set_text("New Task: ");
+        let newEntryLabel = new St.Label({style: "font-size: 14px;"});
+        newEntryLabel.set_text("New Task: ");
         this.newEntryField = new St.Entry({width: 50, reactive: true, track_hover: false, can_focus: true, style: "font-size: 12px;background-color: #ffffff; color: #000000;"});
-        this.newEntryContainer = new St.BoxLayout({style: "spacing: 5px; padding: 5px;border-width: 1px;border-style: solid;border-radius: 5px;border-color: black;", vertical: false});
+        let newEntryContainer = new St.BoxLayout({style: "spacing: 5px; padding: 5px;border-width: 1px;border-style: solid;border-radius: 5px;border-color: black;", vertical: false});
         // add task button
-        this.addTaskIconButton=new St.Icon({ background_color: GRAY, icon_size: 16, icon_name: 'list-add-symbolic',
+        let addTaskIconButton=new St.Icon({ background_color: GRAY, icon_size: 16, icon_name: 'list-add-symbolic',
           icon_type: St.IconType.SYMBOLIC
         });
-        this.addTaskbutton=new St.Button({style: ""}); // container for add icon
-        this.addTaskbutton.set_child(this.addTaskIconButton);
-        this.addTaskbutton.connect('clicked', Lang.bind(this, this.handleAddTask));
-        this.refreshTooltip = new Tooltips.Tooltip(this.addTaskbutton, 'New list item');
-        this.newEntryContainer.add_actor(this.newEntryLabel);
-        this.newEntryContainer.add(this.newEntryField, { expand: true });
-        this.newEntryContainer.add_actor(this.addTaskbutton);
+        let addTaskbutton = new St.Button({style: ""}); // container for add icon
+        addTaskbutton.set_child(addTaskIconButton);
+        addTaskbutton.connect('clicked', Lang.bind(this, this.handleAddTask));
+        this.newTaskTooltip = new Tooltips.Tooltip(addTaskbutton, 'New list item');
+        newEntryContainer.add_actor(newEntryLabel);
+        newEntryContainer.add(this.newEntryField, { expand: true });
+        newEntryContainer.add_actor(addTaskbutton);
         
-        // Debug field (needs debugging)
-        this.debugContainer = new St.BoxLayout({vertical: true, style: "spacing: 5px; padding: 5px;"});
-        this.debugScroll = new St.ScrollView();
+        // Debug log
         this.debugLabel = new St.Label();
         this.debugLabel.set_text(this.debugLog);
-        this.debugContainer.add_actor(this.debugLabel);
-        this.debugScroll.add_actor(this.debugContainer);
+        let debugContainer = new St.BoxLayout({vertical: true, style: "spacing: 5px; padding: 5px;"});
+        debugContainer.add_actor(this.debugLabel);
+        let debugScroll = new St.ScrollView({style: "spacing: initial;padding: 5px;border-width: 1px;border-style: solid;border-radius: 5px;border-color: black;"});
+        debugScroll.set_policy(GtkPolicies.NEVER, GtkPolicies.ALWAYS);
+        debugScroll.set_height(200);
+        debugScroll.add_actor(debugContainer);
        
         // Tie all the containers together
-        this.container.add_actor(this.deskletLabel);
-        this.container.add_actor(this.listScroll);
-        this.container.add_actor(this.newEntryContainer);        
-        if (this.enableDebug) this.container.add_actor(this.debugScroll);
-        this.window.add_child(this.container);
+        mainContainer.add_actor(deskletLabel);
+        mainContainer.add_actor(listScroll);
+        mainContainer.add_actor(newEntryContainer);        
+        if (this.enableDebug) mainContainer.add_actor(debugScroll);
+        this.window.add_child(mainContainer);
         this.newEntryField.clutter_text.connect("button_press_event", Lang.bind(this, this.handleInputFocus));
         this.newEntryField.clutter_text.connect("key_press_event", Lang.bind(this, this.handleInputKeyPress));
         this.setContent(this.window);
