@@ -7,6 +7,11 @@ const DeskletManager = imports.ui.deskletManager;
 const Lang = imports.lang;
 const Tooltips = imports.ui.tooltips;
 const Settings = imports.ui.settings;
+const GtkPolicies = imports.gi.Gtk.PolicyType;
+
+// Task statuses
+const INCOMPLETE = 'i';
+const COMPLETE = 'c';
 
 function ToDoDesklet(metadata, desklet_id) {
     this._init(metadata, desklet_id);
@@ -28,9 +33,6 @@ ToDoDesklet.prototype = {
         this.setupUI();
         this.updateList();
         return true;
-    },
-    entryChanged: function () {
-        this.newEntryStr = this.newEntryField.text;
     },
     removeFromlist: function(array, index) {
         array.splice(index, 1);
@@ -68,28 +70,49 @@ ToDoDesklet.prototype = {
         let WHITE = Clutter.Color.get_static(Clutter.StaticColor.WHITE);
         let GRAY = Clutter.Color.get_static(Clutter.StaticColor.GRAY);
         let BLACK = Clutter.Color.get_static(Clutter.StaticColor.BLACK);
+        let RED = Clutter.Color.get_static(Clutter.StaticColor.RED);
         this.logAction("List updated");
         this.listContainer.remove_all_children();
         this.listData.forEach( function( item, index ) {
+            if (item.status!=INCOMPLETE) return true;
             let taskContainer = new St.BoxLayout({style: "margin-bottom:5px;margin-top:5px;padding-bottom:2px;font-size:12px;align-content:center;text-align-last: right",vertical: false});
             taskContainer.set_id(String(index));
-            let label = new St.Label({style: "text-align: left, padding-right: 5px;color: light-green", width: 276});
+            let label = new St.Label({style: "text-align: left, padding-right: 5px;color: light-green", width: 270});
             label.set_text(item.text);
 
-            let completeTaskIcon = new St.Icon({ background_color: GREEN, style: "text-align:center;color: GRAY, background-color: GREEN", icon_size: 12, icon_name: 'emblem-default',
+            let completeTaskIcon = new St.Icon({ background_color: GREEN, style: "color: GRAY, background-color: GREEN", icon_size: 12, icon_name: 'emblem-default',
               icon_type: St.IconType.SYMBOLIC
             });
-            let completeTaskbutton = new St.Button({style: ""});
-            let buttonContainer = new St.BoxLayout({background_color: BLACK, style: "", vertical: false});
+            let completeTaskbutton = new St.Button({style: "text-align:center;"});
+            let deleteTaskIcon = new St.Icon({ style: "color: RED;", icon_size: 12, icon_name: 'process-stop',
+              icon_type: St.IconType.SYMBOLIC
+            });
+            let deleteTaskbutton = new St.Button({style: "text-align:center;padding-left: 2px;"});
+            let buttonContainer = new St.BoxLayout({style: "", vertical: false});
             buttonContainer.add_actor(completeTaskbutton);
+            buttonContainer.add_actor(deleteTaskbutton);
             
             completeTaskbutton.set_child(completeTaskIcon);
             completeTaskbutton.connect('clicked', Lang.bind(this, this.handleCompleteTask));
+            deleteTaskbutton.set_child(deleteTaskIcon);
+            deleteTaskbutton.connect('clicked', Lang.bind(this, this.handleDeleteTask));
             
             taskContainer.add_actor(label);
             taskContainer.add_actor(buttonContainer);
             this.listContainer.add_actor(taskContainer);
         }, this);
+    },
+    handleDeleteTask: function(button, clicked_button) {
+        let target = button.get_parent().get_parent().get_id();
+        if (target===null) {
+            this.logAction("Delete clicked but not target found (null).");   
+            return false;
+        }
+        this.logAction("Delete clicked: "+target);
+        //this.listData[target].status = COMPLETE
+        this.listData = this.removeFromlist(this.listData, target);
+        this.writeList();
+        this.updateList();
     },
     handleCompleteTask: function(button, clicked_button) {
         let target = button.get_parent().get_parent().get_id();
@@ -98,7 +121,8 @@ ToDoDesklet.prototype = {
             return false;
         }
         this.logAction("Complete clicked: "+target);
-        this.listData = this.removeFromlist(this.listData, target);
+        this.listData[target].status = COMPLETE
+        // this.listData = this.removeFromlist(this.listData, target);
         this.writeList();
         this.updateList();
     },
@@ -106,14 +130,8 @@ ToDoDesklet.prototype = {
         this.logAction("Add clicked");
         let inputText = this.newEntryField.get_text();
         if (inputText === "" ) return;
-        this.listData.push({text: inputText});
+        this.listData.push({text: inputText, status: INCOMPLETE});
         this.newEntryField.set_text("");
-        this.writeList();
-        this.updateList();
-    },
-    handleRemoveTask: function(actor, event) {
-        this.logAction("Remove clicked");
-        if (this.listData.length>0) this.listData = this.removeFromlist(this.listData,0);
         this.writeList();
         this.updateList();
     },
@@ -142,11 +160,14 @@ ToDoDesklet.prototype = {
         // main container for the desklet
         this.window=new St.BoxLayout({style: "padding: 5px", vertical: true});
         this.container= new St.BoxLayout({style: "padding: 5px;spacing: 5px;", vertical: true, x_align: 2});
-        this.listContainer= new St.BoxLayout({style: "spacing: initial;padding: 5px;border-width: 1px;border-style: solid;border-radius: 5px;border-color: black;", vertical: true, x_align: 2});
-        this.listContainer.set_height(200);
-        this.listContainer.set_width(300);
+        this.listContainer= new St.BoxLayout({vertical: true, x_align: 2});
         this.deskletLabel = new St.Label({style: "text-align: center;font-weight: bold;"});
         this.deskletLabel.set_text("TO DO");
+        this.listScroll = new St.ScrollView({style: "spacing: initial;padding: 5px;border-width: 1px;border-style: solid;border-radius: 5px;border-color: black;"});
+        this.listScroll.set_policy(GtkPolicies.NEVER, GtkPolicies.ALWAYS);
+        this.listScroll.set_height(200);
+        this.listContainer.set_width(300);
+        this.listScroll.add_actor(this.listContainer);
 
         // New task fields
         this.newEntryLabel = new St.Label({style: "font-size: 16px;"});
@@ -177,7 +198,7 @@ ToDoDesklet.prototype = {
         this.debugScroll.add_actor(this.debugContainer);
        
         this.container.add_actor(this.deskletLabel);
-        this.container.add_actor(this.listContainer);
+        this.container.add_actor(this.listScroll);
         this.container.add_actor(this.newEntryContainer);        
         if (this.enableDebug) this.container.add_actor(this.debugScroll);
         this.window.add_child(this.container);
