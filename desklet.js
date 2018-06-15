@@ -37,19 +37,20 @@ ToDoDesklet.prototype = {
     removeFromlist: function(array, index) {
         array.splice(index, 1);
         return array;
-    },
+    }, // write JSON to disk
     writeJSON: function(path, rawData) {
         this.logAction("Writing JSON");
         json = JSON.stringify(rawData);
         return GLib.file_set_contents(path, json);
-    },
+    }, // gather data and call writeJSON
     writeList: function() {
         this.logAction("Writing List");
         this.writeJSON(this.listPath, this.listData)
-    },
+    }, // read JSON from disk
     readJSON: function(path) {
         this.logAction("Reading JSON");
         let json;
+        // TODO: We should be testing the directory as well as the file
         if (GLib.file_test(path, GLib.FileTest.EXISTS)) {
             let [ok,content] = GLib.file_get_contents(path);
             json = JSON.parse(content);
@@ -58,12 +59,16 @@ ToDoDesklet.prototype = {
             this.writeJSON(path, json);
         }
         return json;
-    },
-    // Get the todo list from disk
+    }, // call readJSON and store the read data
     readList: function() {
         this.logAction("Reading List");
         this.listData = this.readJSON(this.listPath);
-    },
+    }, // main update loop, builds the task list
+    /* This could be converted to store references to the task containers 
+     *  and allow them to be deleted/hidden by the complete/delete functions
+     *  rather than rebuilding the task list on every update.  Updates are 
+     *  rare enough not to worry about it though.
+     */
     updateList: function() {
         let BLUE = Clutter.Color.get_static(Clutter.StaticColor.BLUE);
         let GREEN = Clutter.Color.get_static(Clutter.StaticColor.GREEN);
@@ -74,12 +79,14 @@ ToDoDesklet.prototype = {
         this.logAction("List updated");
         this.listContainer.remove_all_children();
         this.listData.forEach( function( item, index ) {
-            if (item.status!=INCOMPLETE) return true;
+            if (item.status!=INCOMPLETE) return true; // Skip completed tasks
+            // Set up the task container
             let taskContainer = new St.BoxLayout({style: "margin-bottom:5px;margin-top:5px;padding-bottom:2px;font-size:12px;align-content:center;text-align-last: right",vertical: false});
-            taskContainer.set_id(String(index));
+            taskContainer.set_id(String(index)); // Store the task id somewhere we can get it later (for complete/delete events)
+            // Main task text field
             let label = new St.Label({style: "text-align: left, padding-right: 5px;color: light-green", width: 270});
             label.set_text(item.text);
-
+            // Task buttons, complete & delete
             let completeTaskIcon = new St.Icon({ background_color: GREEN, style: "color: GRAY, background-color: GREEN", icon_size: 12, icon_name: 'emblem-default',
               icon_type: St.IconType.SYMBOLIC
             });
@@ -91,12 +98,12 @@ ToDoDesklet.prototype = {
             let buttonContainer = new St.BoxLayout({style: "", vertical: false});
             buttonContainer.add_actor(completeTaskbutton);
             buttonContainer.add_actor(deleteTaskbutton);
-            
+            // set up events
             completeTaskbutton.set_child(completeTaskIcon);
             completeTaskbutton.connect('clicked', Lang.bind(this, this.handleCompleteTask));
             deleteTaskbutton.set_child(deleteTaskIcon);
             deleteTaskbutton.connect('clicked', Lang.bind(this, this.handleDeleteTask));
-            
+            // place everything in order
             taskContainer.add_actor(label);
             taskContainer.add_actor(buttonContainer);
             this.listContainer.add_actor(taskContainer);
@@ -109,7 +116,6 @@ ToDoDesklet.prototype = {
             return false;
         }
         this.logAction("Delete clicked: "+target);
-        //this.listData[target].status = COMPLETE
         this.listData = this.removeFromlist(this.listData, target);
         this.writeList();
         this.updateList();
@@ -122,7 +128,6 @@ ToDoDesklet.prototype = {
         }
         this.logAction("Complete clicked: "+target);
         this.listData[target].status = COMPLETE
-        // this.listData = this.removeFromlist(this.listData, target);
         this.writeList();
         this.updateList();
     },
@@ -134,17 +139,17 @@ ToDoDesklet.prototype = {
         this.newEntryField.set_text("");
         this.writeList();
         this.updateList();
-    },
+    }, // Debug log, not used much but handy occasionally
     logAction: function(logString) {
         this.debugLog = this.debugLog + "\n" + logString;
         if (this.debugLabel) this.debugLabel.set_text(this.debugLog); // Don't attempt to display the log before the log display UI has been built
-    },
+    }, // Capture the keyboard input focus when cursor enters the text field
     handleInputFocus: function() {
         if ( global.stage_input_mode == Cinnamon.StageInputMode.FULLSCREEN ) return;
         global.set_stage_input_mode(Cinnamon.StageInputMode.FOCUSED);
         this.input.grab_key_focus();
         global.set_stage_input_mode(Cinnamon.StageInputMode.NORMAL);
-    },
+    }, // add the task when ENTER key pressed
     handleInputKeyPress: function(actor, event) {
         let symbol = event.get_key_symbol();
         if ( symbol == Clutter.Return || symbol == Clutter.KP_Enter ) {
@@ -172,9 +177,7 @@ ToDoDesklet.prototype = {
         // New task fields
         this.newEntryLabel = new St.Label({style: "font-size: 14px;"});
         this.newEntryLabel.set_text("New Task: ");
-
         this.newEntryField = new St.Entry({width: 50, reactive: true, track_hover: false, can_focus: true, style: "font-size: 12px;background-color: #ffffff; color: #000000;"});
-
         this.newEntryContainer = new St.BoxLayout({style: "spacing: 5px; padding: 5px;border-width: 1px;border-style: solid;border-radius: 5px;border-color: black;", vertical: false});
         // add task button
         this.addTaskIconButton=new St.Icon({ background_color: GRAY, icon_size: 16, icon_name: 'list-add-symbolic',
@@ -196,6 +199,7 @@ ToDoDesklet.prototype = {
         this.debugContainer.add_actor(this.debugLabel);
         this.debugScroll.add_actor(this.debugContainer);
        
+        // Tie all the containers together
         this.container.add_actor(this.deskletLabel);
         this.container.add_actor(this.listScroll);
         this.container.add_actor(this.newEntryContainer);        
