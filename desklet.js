@@ -170,7 +170,7 @@ ToDoDesklet.prototype = {
         this.listScroll.add_actor(this.listContainer);
 
         // New task fields
-        this.newEntryLabel = new St.Label({style: "font-size: 16px;"});
+        this.newEntryLabel = new St.Label({style: "font-size: 14px;"});
         this.newEntryLabel.set_text("New Task: ");
 
         this.newEntryField = new St.Entry({width: 50, reactive: true, track_hover: false, can_focus: true, style: "font-size: 12px;background-color: #ffffff; color: #000000;"});
@@ -181,7 +181,6 @@ ToDoDesklet.prototype = {
           icon_type: St.IconType.SYMBOLIC
         });
         this.addTaskbutton=new St.Button({style: ""}); // container for add icon
-        this.addTaskbutton.set_label('New');
         this.addTaskbutton.set_child(this.addTaskIconButton);
         this.addTaskbutton.connect('clicked', Lang.bind(this, this.handleAddTask));
         this.refreshTooltip = new Tooltips.Tooltip(this.addTaskbutton, 'New list item');
